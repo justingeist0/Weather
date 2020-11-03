@@ -3,6 +3,7 @@ package com.fantasmaplasma.weather;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -28,11 +29,12 @@ import cz.msebera.android.httpclient.Header;
 
 public class WeatherController extends AppCompatActivity {
 
-    final int REQUEST_CODE = 123;
+    final int LOCATION_REQUEST_CODE = 123;
     final String WEATHER_URL = "http://api.openweathermap.org/data/2.5/weather";
-    final String APP_ID = "1d61c9dcf08067e6d19a51bb53868b4f";
+    final String AUTH_KEY = "1d61c9dcf08067e6d19a51bb53868b4f";
     final long MIN_TIME = 5000;
     final float MIN_DISTANCE = 1000;
+    final String KEY_IS_CELSIUS = "IS_CELSIUS";
 
     TextView mCityLabel;
     ImageView mWeatherImage;
@@ -41,17 +43,27 @@ public class WeatherController extends AppCompatActivity {
     LocationListener mLocationListener;
 
     String LOCATION_PROVIDER = LocationManager.GPS_PROVIDER;
+    private String mFahrenheit;
+    private String mCelsius;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.weather_controller_layout);
 
-        mCityLabel = findViewById(R.id.locationTV);
-        mWeatherImage = findViewById(R.id.weatherSymbolIV);
-        mTemperatureLabel = findViewById(R.id.tempTV);
+        mCityLabel = findViewById(R.id.tv_location);
+        mWeatherImage = findViewById(R.id.iv_weather_symbol);
+        mTemperatureLabel = findViewById(R.id.tv_temperature);
 
-        findViewById(R.id.changeCityButton)
+        mTemperatureLabel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggleTemperatureUnit();
+            }
+        });
+
+        findViewById(R.id.btn_change_city)
             .setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -61,10 +73,32 @@ public class WeatherController extends AppCompatActivity {
             });
     }
 
+    private void toggleTemperatureUnit() {
+        boolean isCelsius = !isTempCelsius();
+        updateUnitPreference(isCelsius);
+        boolean isDisplayingData = mCelsius != null;
+        if(isDisplayingData) {
+            mTemperatureLabel.setText(
+                    isCelsius ? mCelsius : mFahrenheit
+            );
+        }
+    }
+
+    private void updateUnitPreference(boolean isCelsius) {
+        SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
+        editor.putBoolean(KEY_IS_CELSIUS, isCelsius);
+        editor.apply();
+    }
+
+    private boolean isTempCelsius() {
+        SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+        return prefs.getBoolean(KEY_IS_CELSIUS, true);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        String city = getIntent().getStringExtra("City");
+        String city = getIntent().getStringExtra(WeatherDataModel.EXTRA_CITY);
         if(city != null) {
             getWeatherForNewCity(city);
         } else {
@@ -75,13 +109,14 @@ public class WeatherController extends AppCompatActivity {
     private void getWeatherForNewCity(String city) {
         RequestParams params = new RequestParams();
         params.put("q", city);
-        params.put("appid", APP_ID);
+        params.put("appid", AUTH_KEY);
         requestDataFromWeatherAPI(params);
     }
 
     private void getWeatherForCurrentLocation() {
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mLocationListener = new LocationListener() {
+
             @Override
             public void onLocationChanged(@NotNull Location location) {
                 String longitude = String.valueOf(location.getLongitude());
@@ -89,9 +124,10 @@ public class WeatherController extends AppCompatActivity {
                 RequestParams params = new RequestParams();
                 params.put("lat", latitude);
                 params.put("lon", longitude);
-                params.put("appid", APP_ID);
+                params.put("appid", AUTH_KEY);
                 requestDataFromWeatherAPI(params);
             }
+
             @Override
             public void onStatusChanged(String provider, int status, Bundle extras) { }
             @Override
@@ -101,7 +137,7 @@ public class WeatherController extends AppCompatActivity {
         };
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST_CODE);
             return;
         }
         mLocationManager.requestLocationUpdates(LOCATION_PROVIDER, MIN_TIME, MIN_DISTANCE, mLocationListener);
@@ -111,7 +147,7 @@ public class WeatherController extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NotNull String[] permissions, @NotNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        if (requestCode == REQUEST_CODE) {
+        if (requestCode == LOCATION_REQUEST_CODE) {
             if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 getWeatherForCurrentLocation();
             }
@@ -140,7 +176,12 @@ public class WeatherController extends AppCompatActivity {
     }
 
     private void updateUI(WeatherDataModel weather) {
-        mTemperatureLabel.setText(weather.getTemperature());
+        mCelsius = weather.getTemperatureCelsius();
+        mFahrenheit = weather.getTemperatureFahrenheit();
+        mTemperatureLabel.setText(
+                isTempCelsius() ? mCelsius : mFahrenheit
+        );
+
         mCityLabel.setText(weather.getCity());
 
         int resourceID = getResources().getIdentifier(weather.getIconName(), "drawable", getPackageName());
@@ -150,6 +191,8 @@ public class WeatherController extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        mCelsius = null;
+        mFahrenheit = null;
         if(mLocationManager != null) mLocationManager.removeUpdates(mLocationListener);
     }
 }

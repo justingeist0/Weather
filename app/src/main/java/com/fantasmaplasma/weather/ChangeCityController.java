@@ -16,19 +16,19 @@ public class ChangeCityController extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.change_city_layout);
 
-        final EditText editTextField = findViewById(R.id.queryET);
+        final EditText editTextField = findViewById(R.id.et_query);
         editTextField.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 String newCity = editTextField.getText().toString();
                 Intent newCityIntent = new Intent(ChangeCityController.this, WeatherController.class);
-                newCityIntent.putExtra("City", newCity);
+                newCityIntent.putExtra(WeatherDataModel.EXTRA_CITY, newCity);
                 startActivity(newCityIntent);
                 return false;
             }
         });
 
-        findViewById(R.id.backButton)
+        findViewById(R.id.btn_back)
             .setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {

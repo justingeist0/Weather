@@ -6,9 +6,13 @@ import org.json.JSONObject;
 public class WeatherDataModel {
 
     private String mCity;
-    private String mTemperature;
     private String mIconName;
     private int mCondition;
+    private double mCelsiusTemperature;
+
+    static String CELSIUS = "°C";
+    static String FAHRENHEIT = "°F";
+    static String EXTRA_CITY = "City";
 
     public static WeatherDataModel fromJson(JSONObject jsonObject) {
         WeatherDataModel weatherData = new WeatherDataModel();
@@ -18,9 +22,7 @@ public class WeatherDataModel {
                     .getJSONObject(0).getInt("id");
             weatherData.mIconName = updateWeatherIcon(weatherData.mCondition);
 
-            double tempResult = jsonObject.getJSONObject("main").getDouble("temp") - 273.15;
-            int roundedValue = (int) Math.rint(tempResult);
-            weatherData.mTemperature = Integer.toString(roundedValue);
+            weatherData.mCelsiusTemperature = jsonObject.getJSONObject("main").getDouble("temp") - 273.15;
 
             return weatherData;
         } catch (JSONException e) {
@@ -62,8 +64,12 @@ public class WeatherDataModel {
         return mCity;
     }
 
-    public String getTemperature() {
-        return mTemperature + "°C";
+    public String getTemperatureCelsius() {
+        return (int)Math.rint(mCelsiusTemperature) + CELSIUS;
+    }
+
+    public String getTemperatureFahrenheit() {
+        return (int)Math.rint(mCelsiusTemperature/5*9+32) + FAHRENHEIT;
     }
 
     public String getIconName() {
